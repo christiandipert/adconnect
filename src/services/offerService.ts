@@ -1,16 +1,33 @@
 import { randomUUID } from "node:crypto";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync
+} from "node:fs";
+import { resolve } from "node:path";
 import { mockCampaigns, mockOffers } from "../data/mockData.ts";
 import type {
   AnalyticsByOffer,
   Campaign,
+  ClaimOfferInput,
+  CompareOffersInput,
+  CompareOffersResult,
   DashboardCampaignInput,
   EventType,
+  IntegrationStepsResult,
   Offer,
   OfferCategory,
+  OfferClaim,
+  OfferComparisonRow,
   OfferDetails,
+  OfferReport,
+  ReportOfferInput,
   OfferSummary,
   SearchOffersInput,
   SearchOffersResult,
+  SetupEffort,
   TargetingProfile,
   TrackEventInput,
   TrackedEvent
@@ -31,7 +48,10 @@ const CATEGORIES: OfferCategory[] = [
   "observability",
   "auth",
   "payments",
-  "database"
+  "database",
+  "analytics",
+  "ci_cd",
+  "security"
 ];
 
 const STOPWORDS = new Set([
@@ -47,9 +67,35 @@ const STOPWORDS = new Set([
   "with"
 ]);
 
-let campaigns: Campaign[] = structuredClone(mockCampaigns);
-let offers: Offer[] = structuredClone(mockOffers);
-let events: TrackedEvent[] = [];
+interface DataStore {
+  campaigns: Campaign[];
+  offers: Offer[];
+  events: TrackedEvent[];
+  claims: OfferClaim[];
+  reports: OfferReport[];
+}
+
+type CollectionName = keyof DataStore;
+
+const DATA_DIR = process.env.ADCONNECT_DATA_DIR
+  ? resolve(process.env.ADCONNECT_DATA_DIR)
+  : resolve(process.cwd(), "data");
+
+const COLLECTION_FILES: Record<CollectionName, string> = {
+  campaigns: "campaigns.json",
+  offers: "offers.json",
+  events: "events.json",
+  claims: "claims.json",
+  reports: "reports.json"
+};
+
+const initialStore = initializeStore();
+
+let campaigns: Campaign[] = initialStore.campaigns;
+let offers: Offer[] = initialStore.offers;
+let events: TrackedEvent[] = initialStore.events;
+let claims: OfferClaim[] = initialStore.claims;
+let reports: OfferReport[] = initialStore.reports;
 
 export class ValidationError extends Error {
   statusCode = 400;
@@ -69,6 +115,14 @@ export function listOffers(): Offer[] {
 
 export function listEvents(): TrackedEvent[] {
   return structuredClone(events);
+}
+
+export function listClaims(): OfferClaim[] {
+  return structuredClone(claims);
+}
+
+export function listReports(): OfferReport[] {
+  return structuredClone(reports);
 }
 
 export function searchOffers(input: SearchOffersInput): SearchOffersResult {
@@ -182,6 +236,7 @@ export function trackEvent(input: TrackEventInput): TrackedEvent {
   };
 
   events = [event, ...events];
+  writeCollection("events", events);
   return structuredClone(event);
 }
 
@@ -264,10 +319,133 @@ export function createSponsoredCampaign(input: DashboardCampaignInput): {
 
   campaigns = [campaign, ...campaigns];
   offers = [offer, ...offers];
+  writeCollection("campaigns", campaigns);
+  writeCollection("offers", offers);
 
   return {
     campaign: structuredClone(campaign),
     offer: structuredClone(offer)
+  };
+}
+
+export function claimOffer(input: ClaimOfferInput): OfferClaim {
+  const payload = (input ?? {}) as Partial<ClaimOfferInput>;
+  const offer = requireOffer(payload.offerId ?? "", "Cannot claim unknown offer");
+  const timestamp = new Date().toISOString();
+  const sessionId = cleanText(payload.sessionId ?? "") || undefined;
+  const metadata = metadataRecord(payload.metadata);
+  const claimId = `claim_${randomUUID()}`;
+  const claim: OfferClaim = {
+    id: claimId,
+    offerId: offer.id,
+    status: "pending_approval",
+    handoffUrl: buildHandoffUrl(offer, claimId),
+    approvalRequired: true,
+    sessionId,
+    metadata,
+    createdAt: timestamp,
+    updatedAt: timestamp
+  };
+
+  claims = [claim, ...claims];
+  writeCollection("claims", claims);
+
+  trackEvent({
+    offerId: offer.id,
+    eventType: "claim",
+    sessionId,
+    metadata: {
+      ...metadata,
+      claimId: claim.id,
+      claimStatus: claim.status,
+      handoffUrl: claim.handoffUrl,
+      approvalRequired: claim.approvalRequired
+    }
+  });
+
+  return structuredClone(claim);
+}
+
+export function reportOffer(input: ReportOfferInput): OfferReport {
+  const payload = (input ?? {}) as Partial<ReportOfferInput>;
+  const offer = requireOffer(payload.offerId ?? "", "Cannot report unknown offer");
+  const category = requireText(payload.category ?? "", "category");
+  const reason = requireText(payload.reason ?? "", "reason");
+  const timestamp = new Date().toISOString();
+  const sessionId = cleanText(payload.sessionId ?? "") || undefined;
+  const metadata = metadataRecord(payload.metadata);
+  const report: OfferReport = {
+    id: `report_${randomUUID()}`,
+    offerId: offer.id,
+    category,
+    reason,
+    status: "open",
+    sessionId,
+    metadata,
+    createdAt: timestamp,
+    updatedAt: timestamp
+  };
+
+  reports = [report, ...reports];
+  writeCollection("reports", reports);
+
+  trackEvent({
+    offerId: offer.id,
+    eventType: "report",
+    sessionId,
+    metadata: {
+      ...metadata,
+      reportId: report.id,
+      reportCategory: category,
+      reportReason: reason
+    }
+  });
+
+  return structuredClone(report);
+}
+
+export function compareOffers(input: CompareOffersInput): CompareOffersResult {
+  const payload = (input ?? {}) as Partial<CompareOffersInput>;
+  const offerIds = normalizeOfferIds(payload.offerIds);
+  if (offerIds.length === 0) {
+    throw new ValidationError("compare_offers requires at least two offerIds.");
+  }
+
+  if (offerIds.length < 2) {
+    throw new ValidationError("compare_offers requires at least two offerIds.");
+  }
+
+  const selectedOffers = offerIds.map((offerId) => requireOffer(offerId, "Offer not found"));
+  const rows = selectedOffers.map(toComparisonRow);
+
+  return {
+    generatedAt: new Date().toISOString(),
+    disclosure:
+      "Sponsored and organic options are compared side by side. Paid status must remain visible and must not be used to hide organic alternatives.",
+    offerIds,
+    rows,
+    summary: {
+      categories: [...new Set(rows.map((row) => row.category))],
+      sponsoredCount: rows.filter((row) => row.sponsored).length,
+      organicCount: rows.filter((row) => !row.sponsored).length
+    }
+  };
+}
+
+export function getIntegrationSteps(offerId: string): IntegrationStepsResult {
+  const offer = requireOffer(offerId, "Offer not found");
+  const steps = buildIntegrationSteps(offer);
+
+  return {
+    offerId: offer.id,
+    vendorName: offer.vendorName,
+    title: offer.title,
+    installCommand: offer.integration.installCommand,
+    envVars: [...offer.integration.requiredEnvVars],
+    configFiles: [...offer.integration.configFiles],
+    approvalReminder:
+      "Ask for explicit user approval before opening external handoff URLs, claiming sponsored offers, installing packages, editing files, sending telemetry, or creating accounts.",
+    steps
   };
 }
 
@@ -305,9 +483,235 @@ export function getAnalytics(): {
 }
 
 export function resetStateForTests(): void {
-  campaigns = structuredClone(mockCampaigns);
-  offers = structuredClone(mockOffers);
+  const seeded = seedStore();
+  campaigns = seeded.campaigns;
+  offers = seeded.offers;
   events = [];
+  claims = [];
+  reports = [];
+  writeStore(currentStore());
+}
+
+function initializeStore(): DataStore {
+  ensureDataDir();
+  const hasPersistedData = Object.values(COLLECTION_FILES).some((fileName) =>
+    existsSync(resolve(DATA_DIR, fileName))
+  );
+  const seeded = seedStore();
+
+  if (!hasPersistedData) {
+    writeStore(seeded);
+    return seeded;
+  }
+
+  return {
+    campaigns: readCollection("campaigns", seeded.campaigns),
+    offers: readCollection("offers", seeded.offers),
+    events: readCollection("events", seeded.events),
+    claims: readCollection("claims", seeded.claims),
+    reports: readCollection("reports", seeded.reports)
+  };
+}
+
+function seedStore(): DataStore {
+  return {
+    campaigns: structuredClone(mockCampaigns),
+    offers: structuredClone(mockOffers),
+    events: [],
+    claims: [],
+    reports: []
+  };
+}
+
+function currentStore(): DataStore {
+  return {
+    campaigns,
+    offers,
+    events,
+    claims,
+    reports
+  };
+}
+
+function readCollection<T extends CollectionName>(
+  name: T,
+  fallback: DataStore[T]
+): DataStore[T] {
+  const filePath = collectionPath(name);
+  if (!existsSync(filePath)) {
+    writeCollection(name, fallback);
+    return structuredClone(fallback);
+  }
+
+  try {
+    const parsed = JSON.parse(readFileSync(filePath, "utf8"));
+    if (Array.isArray(parsed)) {
+      return parsed as DataStore[T];
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown parse error";
+    throw new Error(`Failed to read ${filePath}: ${message}`);
+  }
+
+  throw new Error(`Failed to read ${filePath}: expected a JSON array.`);
+}
+
+function writeStore(store: DataStore): void {
+  writeCollection("campaigns", store.campaigns);
+  writeCollection("offers", store.offers);
+  writeCollection("events", store.events);
+  writeCollection("claims", store.claims);
+  writeCollection("reports", store.reports);
+}
+
+function writeCollection<T extends CollectionName>(name: T, collection: DataStore[T]): void {
+  ensureDataDir();
+  const filePath = collectionPath(name);
+  const tempPath = `${filePath}.${process.pid}.${randomUUID()}.tmp`;
+  writeFileSync(tempPath, `${JSON.stringify(collection, null, 2)}\n`, "utf8");
+  renameSync(tempPath, filePath);
+}
+
+function collectionPath(name: CollectionName): string {
+  return resolve(DATA_DIR, COLLECTION_FILES[name]);
+}
+
+function ensureDataDir(): void {
+  mkdirSync(DATA_DIR, { recursive: true });
+}
+
+function requireOffer(offerId: string, errorPrefix: string): Offer {
+  const id = cleanText(String(offerId ?? ""));
+  const offer = offers.find((candidate) => candidate.id === id);
+  if (!offer) {
+    throw new ValidationError(`${errorPrefix}: ${id || "(blank)"}`);
+  }
+  return offer;
+}
+
+function normalizeOfferIds(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    throw new ValidationError("offerIds must be an array.");
+  }
+  return [...new Set(value.map((item) => cleanText(String(item))).filter(Boolean))];
+}
+
+function toComparisonRow(offer: Offer): OfferComparisonRow {
+  return {
+    offerId: offer.id,
+    vendorName: offer.vendorName,
+    title: offer.title,
+    category: offer.category,
+    sponsored: offer.sponsored,
+    label: offer.sponsored ? "Sponsored" : "Organic",
+    pricingNotes: offer.pricingNotes,
+    envVars: [...offer.integration.requiredEnvVars],
+    setupEffort: estimateSetupEffort(offer),
+    disclosure: offer.disclosure
+  };
+}
+
+function estimateSetupEffort(offer: Offer): SetupEffort {
+  const installCount = offer.integration.installCommand ? 1 : 0;
+  const stepCount =
+    installCount +
+    offer.setupNotes.length +
+    offer.integration.requiredEnvVars.length +
+    offer.integration.configFiles.length;
+  let level: SetupEffort["level"] = "low";
+
+  if (stepCount >= 8 || offer.integration.requiredEnvVars.length >= 3) {
+    level = "high";
+  } else if (stepCount >= 5 || offer.integration.configFiles.length >= 2) {
+    level = "medium";
+  }
+
+  return {
+    level,
+    stepCount,
+    requiredEnvVarCount: offer.integration.requiredEnvVars.length,
+    configFileCount: offer.integration.configFiles.length,
+    summary: `${level} effort: ${stepCount} setup touchpoints, ${offer.integration.requiredEnvVars.length} env vars, ${offer.integration.configFiles.length} config files.`
+  };
+}
+
+function buildIntegrationSteps(offer: Offer): IntegrationStepsResult["steps"] {
+  const steps: IntegrationStepsResult["steps"] = [];
+  let order = 1;
+
+  steps.push({
+    order: order++,
+    title: "Review offer",
+    description: `Review ${offer.vendorName} terms, pricing notes, eligibility, docs, and disclosure before presenting it.`,
+    approvalRequired: false
+  });
+
+  if (offer.sponsored) {
+    steps.push({
+      order: order++,
+      title: "Confirm sponsored handoff approval",
+      description:
+        "Tell the user this is a sponsored offer and get explicit approval before claim, signup, install, purchase, or external handoff.",
+      approvalRequired: true
+    });
+  }
+
+  if (offer.integration.installCommand) {
+    steps.push({
+      order: order++,
+      title: "Install package",
+      description: offer.integration.installCommand,
+      approvalRequired: true
+    });
+  }
+
+  if (offer.integration.requiredEnvVars.length > 0) {
+    steps.push({
+      order: order++,
+      title: "Configure environment variables",
+      description: offer.integration.requiredEnvVars.join(", "),
+      approvalRequired: true
+    });
+  }
+
+  if (offer.integration.configFiles.length > 0) {
+    steps.push({
+      order: order++,
+      title: "Update config files",
+      description: offer.integration.configFiles.join(", "),
+      approvalRequired: true
+    });
+  }
+
+  for (const note of offer.setupNotes) {
+    steps.push({
+      order: order++,
+      title: "Apply setup note",
+      description: note,
+      approvalRequired: note.toLowerCase().includes("approval")
+    });
+  }
+
+  steps.push({
+    order,
+    title: "Verify integration",
+    description:
+      "Use a non-production environment first, confirm behavior, and avoid sending production data until the user approves.",
+    approvalRequired: true
+  });
+
+  return steps;
+}
+
+function buildHandoffUrl(offer: Offer, claimId: string): string {
+  try {
+    const url = new URL(offer.offerUrl);
+    url.searchParams.set("adconnect_claim_id", claimId);
+    url.searchParams.set("adconnect_offer_id", offer.id);
+    return url.toString();
+  } catch {
+    return `https://adconnect.local/claims/${encodeURIComponent(claimId)}`;
+  }
 }
 
 function scoreOffer(
@@ -509,6 +913,13 @@ function cleanUrl(value: unknown): string {
     return "";
   }
   return "";
+}
+
+function metadataRecord(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return structuredClone(value) as Record<string, unknown>;
+  }
+  return {};
 }
 
 function slugify(value: string): string {

@@ -2,12 +2,16 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { readFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 import {
+  claimOffer,
+  compareOffers,
   createSponsoredCampaign,
   getAnalytics,
+  getIntegrationSteps,
   getOfferDetails,
   listCampaigns,
   listCategories,
   listOffers,
+  reportOffer,
   searchOffers,
   trackEvent,
   ValidationError
@@ -35,7 +39,7 @@ const server = createServer(async (request, response) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`AdConnect MVP running at http://${HOST}:${PORT}`);
+  console.log(`AdConnect beta running at http://${HOST}:${PORT}`);
   console.log(`MCP JSON-RPC endpoint: http://${HOST}:${PORT}/mcp`);
 });
 
@@ -74,9 +78,33 @@ async function routeRequest(request: IncomingMessage, response: ServerResponse):
     return;
   }
 
+  if (url.pathname === "/api/offers/compare" && request.method === "POST") {
+    const body = await readJsonBody(request);
+    sendJson(response, compareOffers(body as never));
+    return;
+  }
+
+  const offerIntegrationMatch = url.pathname.match(/^\/api\/offers\/([^/]+)\/integration$/);
+  if (offerIntegrationMatch && request.method === "GET") {
+    sendJson(response, getIntegrationSteps(decodeURIComponent(offerIntegrationMatch[1])));
+    return;
+  }
+
   const offerDetailMatch = url.pathname.match(/^\/api\/offers\/([^/]+)$/);
   if (offerDetailMatch && request.method === "GET") {
     sendJson(response, getOfferDetails(decodeURIComponent(offerDetailMatch[1])));
+    return;
+  }
+
+  if (url.pathname === "/api/claims" && request.method === "POST") {
+    const body = await readJsonBody(request);
+    sendJson(response, claimOffer(body as never), 201);
+    return;
+  }
+
+  if (url.pathname === "/api/reports" && request.method === "POST") {
+    const body = await readJsonBody(request);
+    sendJson(response, reportOffer(body as never), 201);
     return;
   }
 
@@ -150,8 +178,8 @@ async function handleMcpMessage(message: unknown): Promise<unknown> {
               tools: {}
             },
             serverInfo: {
-              name: "adconnect-mvp",
-              version: "0.1.0"
+              name: "adconnect-beta",
+              version: "0.2.0"
             }
           }
         };

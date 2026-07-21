@@ -1,12 +1,13 @@
 {
   "name": "adconnect",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "MVP prototype for interactive sponsored offer connectors in Codex and ChatGPT.",
+  "description": "Beta prototype for interactive sponsored offer connectors in Codex and ChatGPT.",
   "scripts": {
     "dev": "node --watch src/server.ts",
     "start": "node src/server.ts",
+    "smoke": "node scripts/smoke-test.mjs",
     "test": "node --test tests/*.test.ts"
   },
   "engines": {

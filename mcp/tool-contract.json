@@ -1,29 +1,349 @@
 {
-  "name": "adconnect-mvp",
-  "version": "0.1.0",
+  "name": "adconnect-beta",
+  "version": "0.2.0",
+  "status": "marketable-beta-contract",
   "endpoint": "/mcp",
   "transport": "json-rpc-http",
+  "description": "MCP-style tool contract for reviewed sponsored developer-tool offers shown through ChatGPT and Codex.",
+  "principles": [
+    "Sponsored offers must help with the user's current developer task.",
+    "Paid placement must be disclosed and separated from organic recommendations.",
+    "Users must approve external side effects before they happen.",
+    "Advertiser claims, links, integration steps, and hosted connectors require review before activation."
+  ],
   "tools": [
     {
       "name": "search_offers",
       "description": "Find relevant sponsored and organic developer-tool offers for a user intent.",
-      "required": ["intent"]
+      "sideEffects": false,
+      "required": ["intent"],
+      "inputSchema": {
+        "type": "object",
+        "required": ["intent"],
+        "properties": {
+          "intent": {
+            "type": "string",
+            "description": "The user's task or buying/integration intent."
+          },
+          "category": {
+            "type": "string",
+            "description": "Developer-tool category such as email, hosting, auth, observability, database, payments, analytics, ci_cd, or security."
+          },
+          "frameworks": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "languages": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "region": {
+            "type": "string"
+          },
+          "constraints": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "User constraints such as budget, compliance, deployment target, scale, or company stage."
+          },
+          "sessionId": {
+            "type": "string"
+          }
+        }
+      },
+      "outputRequirements": [
+        "Return sponsored and organic offers in separate arrays.",
+        "Include disclosure text for every sponsored offer.",
+        "Include whyShown or relevanceReasons for every sponsored offer.",
+        "Exclude offers dismissed or reported in the same session when session context is available."
+      ],
+      "safety": {
+        "requiresSponsoredLabel": true,
+        "requiresSeparatedOrganicRanking": true,
+        "requiresReviewStatus": "approved"
+      }
     },
     {
       "name": "get_offer_details",
-      "description": "Return terms, docs, setup notes, eligibility, disclosure text, and presentation guidance.",
-      "required": ["offerId"]
+      "description": "Return reviewed offer terms, docs, setup notes, eligibility, claims, pricing notes, and disclosure guidance.",
+      "sideEffects": false,
+      "required": ["offerId"],
+      "inputSchema": {
+        "type": "object",
+        "required": ["offerId"],
+        "properties": {
+          "offerId": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          }
+        }
+      },
+      "outputRequirements": [
+        "Include sponsored disclosure when the offer is paid.",
+        "Include eligibility, expiration, region, pricing caveats, claim requirements, and review status when available.",
+        "Include advertiser-provided claims separately from AdConnect or assistant analysis."
+      ],
+      "safety": {
+        "trackInspectAfterPresentation": true,
+        "doNotPresentUnreviewedClaims": true
+      }
+    },
+    {
+      "name": "compare_offers",
+      "description": "Compare selected sponsored and organic vendors across developer-relevant decision criteria.",
+      "sideEffects": false,
+      "required": ["offerIds"],
+      "inputSchema": {
+        "type": "object",
+        "required": ["offerIds"],
+        "properties": {
+          "offerIds": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 2
+          },
+          "criteria": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Criteria such as pricing, limits, setup effort, docs, framework support, compliance, lock-in, or scale."
+          },
+          "intent": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          }
+        }
+      },
+      "outputRequirements": [
+        "Keep sponsored status visible for each offer.",
+        "Compare on user-relevant criteria, not advertiser bid amount.",
+        "Highlight missing data instead of inventing claims."
+      ],
+      "safety": {
+        "requiresSponsoredDisclosureInComparison": true,
+        "requiresNeutralCriteria": true
+      }
+    },
+    {
+      "name": "claim_offer",
+      "description": "Start an approved claim, signup, credit redemption, or advertiser handoff for a sponsored offer.",
+      "sideEffects": true,
+      "required": ["offerId", "userApproval"],
+      "inputSchema": {
+        "type": "object",
+        "required": ["offerId", "userApproval"],
+        "properties": {
+          "offerId": {
+            "type": "string"
+          },
+          "userApproval": {
+            "type": "boolean",
+            "description": "Must be true only after explicit user approval."
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "claimContext": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Optional reviewed context needed for the claim, such as selected plan or company stage."
+          }
+        }
+      },
+      "outputRequirements": [
+        "Return the handoff URL, claim token, expiration, and next steps when available.",
+        "Return what data may be sent to the advertiser.",
+        "Return whether the claim is reversible or cancellable."
+      ],
+      "safety": {
+        "requiresExplicitUserApproval": true,
+        "requiresApprovedOffer": true,
+        "requiresDisclosureBeforeCall": true,
+        "trackClaimAfterStart": true
+      }
+    },
+    {
+      "name": "get_integration_steps",
+      "description": "Return reviewed setup instructions, SDK guidance, configuration requirements, validation steps, and optional hosted connector actions.",
+      "sideEffects": false,
+      "required": ["offerId"],
+      "inputSchema": {
+        "type": "object",
+        "required": ["offerId"],
+        "properties": {
+          "offerId": {
+            "type": "string"
+          },
+          "framework": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "packageManager": {
+            "type": "string"
+          },
+          "environment": {
+            "type": "string",
+            "description": "Local, staging, production, or hosted target."
+          },
+          "sessionId": {
+            "type": "string"
+          }
+        }
+      },
+      "outputRequirements": [
+        "Separate informational setup steps from actions that require approval.",
+        "Include required environment variables, package names, docs links, and validation steps.",
+        "Identify any advertiser-hosted connector action and its side effects before use."
+      ],
+      "safety": {
+        "requiresApprovalBeforeCodeChanges": true,
+        "requiresApprovalBeforeExternalCalls": true,
+        "requiresReviewedInstructions": true
+      }
     },
     {
       "name": "track_event",
-      "description": "Record impressions, inspection, claims, dismissals, reports, and conversions.",
-      "required": ["offerId", "eventType"]
+      "description": "Record analytics and audit events for sponsored offer presentation and user actions.",
+      "sideEffects": true,
+      "required": ["offerId", "eventType"],
+      "inputSchema": {
+        "type": "object",
+        "required": ["offerId", "eventType"],
+        "properties": {
+          "offerId": {
+            "type": "string"
+          },
+          "eventType": {
+            "type": "string",
+            "enum": [
+              "impression",
+              "inspect",
+              "compare",
+              "integration_steps_viewed",
+              "integration_started",
+              "claim",
+              "dismiss",
+              "report",
+              "conversion"
+            ]
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "outputRequirements": [
+        "Return a stable event id and recorded timestamp.",
+        "Do not record events for actions that did not occur."
+      ],
+      "safety": {
+        "requiresActionTruthfulness": true,
+        "mayContainAuditData": true
+      }
+    },
+    {
+      "name": "report_offer",
+      "description": "Submit a user report for misleading, unsafe, irrelevant, expired, low-quality, or incorrectly targeted offers.",
+      "sideEffects": true,
+      "required": ["offerId", "reason"],
+      "inputSchema": {
+        "type": "object",
+        "required": ["offerId", "reason"],
+        "properties": {
+          "offerId": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "misleading",
+              "unsafe",
+              "irrelevant",
+              "expired",
+              "spam",
+              "low_quality",
+              "wrong_region",
+              "other"
+            ]
+          },
+          "details": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          }
+        }
+      },
+      "outputRequirements": [
+        "Return report id, status, and whether the offer should be suppressed for the session.",
+        "Create or trigger a moderation review item."
+      ],
+      "safety": {
+        "suppressOfferInSession": true,
+        "requiresModerationQueue": true,
+        "trackReportAfterSubmission": true
+      }
     }
   ],
-  "eventTypes": ["impression", "inspect", "claim", "dismiss", "report", "conversion"],
+  "eventTypes": [
+    "impression",
+    "inspect",
+    "compare",
+    "integration_steps_viewed",
+    "integration_started",
+    "claim",
+    "dismiss",
+    "report",
+    "conversion"
+  ],
   "safety": {
     "sponsoredLabelsRequired": true,
     "organicRankingSeparated": true,
-    "approvalRequiredForSideEffects": true
-  }
+    "approvalRequiredForSideEffects": true,
+    "approvalRequiredForCodeChanges": true,
+    "approvalRequiredForExternalConnectors": true,
+    "userDismissalsHonored": true,
+    "userReportsHonored": true,
+    "advertiserReviewRequired": true,
+    "auditLoggingRequired": true,
+    "moderationQueueRequired": true
+  },
+  "approvalRequiredFor": [
+    "claim_offer",
+    "external_signup_handoff",
+    "purchase_or_plan_change",
+    "package_install",
+    "code_change",
+    "hosted_connector_call",
+    "telemetry_export",
+    "account_creation",
+    "credential_or_secret_use"
+  ],
+  "presentationRequirements": [
+    "Show sponsored offers only in a labeled sponsored section.",
+    "Show organic recommendations separately.",
+    "Include why the offer was shown.",
+    "State material eligibility, price, region, expiration, and account requirements when available.",
+    "Do not present paid placement as unbiased ranking.",
+    "Do not repeat dismissed or reported offers in the same session."
+  ],
+  "reviewRequirements": [
+    "Advertiser identity",
+    "Offer terms",
+    "Pricing and credits",
+    "Claims and benchmarks",
+    "Targeting categories",
+    "Docs and links",
+    "SDK snippets and integration steps",
+    "Hosted connector scopes and side effects",
+    "Moderation and report history"
+  ]
 }

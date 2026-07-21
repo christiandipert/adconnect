@@ -3,23 +3,49 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AdConnect MVP</title>
+    <title>AdConnect Beta Console</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <header class="topbar">
-      <div>
-        <p class="eyebrow">MVP Dashboard</p>
+      <div class="brand-lockup">
+        <p class="eyebrow">Beta Console</p>
         <h1>AdConnect</h1>
+        <p>Sponsored MCP connector operations for ads that can be inspected, claimed, and audited inside ChatGPT/Codex.</p>
       </div>
-      <div class="status-pill" id="healthStatus">Checking API</div>
+      <div class="topbar-actions">
+        <div class="status-pill" id="healthStatus">Checking API</div>
+        <div class="session-pill" id="sessionLabel">Session pending</div>
+      </div>
     </header>
 
     <main class="workspace">
-      <section class="band layout-two">
-        <form class="panel" id="campaignForm">
+      <section class="overview" aria-label="Console status">
+        <div class="overview-item">
+          <span>API</span>
+          <strong id="apiStat">Checking</strong>
+        </div>
+        <div class="overview-item">
+          <span>Inventory</span>
+          <strong id="inventoryStat">-</strong>
+        </div>
+        <div class="overview-item">
+          <span>Selected</span>
+          <strong id="selectedStat">None</strong>
+        </div>
+        <div class="overview-item">
+          <span>Compare Queue</span>
+          <strong id="queueStat">0 offers</strong>
+        </div>
+      </section>
+
+      <section class="console-grid">
+        <form class="panel builder-panel" id="campaignForm">
           <div class="panel-heading">
-            <h2>Create Sponsored Offer</h2>
+            <div>
+              <p class="section-kicker">Advertiser Workspace</p>
+              <h2>Offer Builder</h2>
+            </div>
             <button type="submit">Save Offer</button>
           </div>
 
@@ -88,15 +114,18 @@
           <p class="form-message" id="formMessage" role="status"></p>
         </form>
 
-        <section class="panel">
+        <section class="panel simulator-panel">
           <div class="panel-heading">
-            <h2>Preview Search</h2>
+            <div>
+              <p class="section-kicker">ChatGPT/Codex Simulator</p>
+              <h2>Offer Search</h2>
+            </div>
             <button id="runSearchButton" type="button">Run Search</button>
           </div>
 
           <div class="search-controls">
-            <label>
-              Intent
+            <label class="span-3">
+              User intent
               <input id="intentInput" value="Find services to add transactional email to a Next.js app" />
             </label>
             <label>
@@ -117,31 +146,66 @@
             </label>
             <label class="checkbox-line">
               <input id="includeOrganicInput" type="checkbox" checked />
-              Include organic
+              Include organic results
             </label>
           </div>
 
           <div class="disclosure" id="searchDisclosure"></div>
+          <div class="inline-status" id="simulatorStatus" role="status"></div>
           <div class="results" id="results"></div>
-        </section>
-      </section>
 
-      <section class="band layout-two">
-        <section class="panel">
+          <div class="queue-shell">
+            <div class="queue-header">
+              <div>
+                <p class="section-kicker">Selected Offer Comparison</p>
+                <h3>Comparison Queue</h3>
+              </div>
+              <button class="secondary" id="compareButton" type="button" disabled>Compare</button>
+            </div>
+            <div class="queue-list" id="queueList"></div>
+          </div>
+        </section>
+
+        <section class="panel detail-panel">
           <div class="panel-heading">
-            <h2>Offer Details</h2>
+            <div>
+              <p class="section-kicker">Offer Details</p>
+              <h2>Details + Integration</h2>
+            </div>
             <span class="muted" id="detailLabel">No offer selected</span>
           </div>
-          <div id="details" class="details-empty">No offer selected.</div>
+          <div class="detail-layout">
+            <div id="details" class="empty-state">Select an offer to inspect terms, eligibility, disclosure, and approval boundaries.</div>
+            <div id="integrationPanel" class="empty-state">Integration instructions load after inspection.</div>
+          </div>
         </section>
 
-        <section class="panel">
+        <section class="panel analytics-panel">
           <div class="panel-heading">
-            <h2>Analytics</h2>
-            <button id="refreshAnalyticsButton" type="button">Refresh</button>
+            <div>
+              <p class="section-kicker">Analytics + Audit</p>
+              <h2>Live Console</h2>
+            </div>
+            <button class="secondary" id="refreshAnalyticsButton" type="button">Refresh</button>
           </div>
+
           <div class="metrics" id="metrics"></div>
-          <div class="event-log" id="eventLog"></div>
+          <div class="audit-grid">
+            <div class="audit-block">
+              <div class="block-heading">
+                <h3>Comparison Result</h3>
+                <span id="compareStatus" class="muted">No comparison run</span>
+              </div>
+              <div id="compareOutput" class="empty-state compact">Add two or more offers to compare.</div>
+            </div>
+            <div class="audit-block">
+              <div class="block-heading">
+                <h3>Audit Trail</h3>
+                <span id="auditStatus" class="muted">Recent events</span>
+              </div>
+              <div class="event-log" id="eventLog"></div>
+            </div>
+          </div>
         </section>
       </section>
     </main>

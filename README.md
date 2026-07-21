@@ -1,160 +1,69 @@
 # AdConnect
 
-AdConnect is a concept for opt-in, interactive sponsored business integrations inside Codex. The goal is not to place passive banner ads into a developer workflow. The goal is to let businesses expose useful, clearly disclosed offers and actions that Codex can access when a user asks for relevant tools, vendors, services, or integrations.
+AdConnect is a sponsored developer-tool marketplace for ChatGPT and Codex.
 
-## Product Thesis
+Advertisers create reviewed offers for products such as email APIs, hosting, auth, observability, databases, and payments. ChatGPT or Codex discovers those offers through MCP-style tools when a user asks for relevant vendors or integration help. Sponsored results are clearly labeled, separated from organic recommendations, and require user approval before any side effect such as a claim, signup handoff, install, purchase, connector call, or code change.
 
-Developers do not need more ad inventory inside their tools. They need useful paths from intent to action.
+The goal is not banner advertising inside a developer workflow. The goal is an intent-driven path from "I need to add X" to vetted options, transparent offer terms, integration steps, and measurable advertiser outcomes.
 
-AdConnect should make sponsored placements behave like agentic workflows:
+## Product Flow
 
-- A user asks Codex for help with a real task.
-- Codex detects that a product, service, or vendor recommendation may be useful.
-- AdConnect returns relevant organic and sponsored options with clear disclosure.
-- The user can inspect, compare, dismiss, claim, or use an offer.
-- Codex can then help with setup, code changes, documentation lookup, or configuration when the user approves.
+1. An advertiser submits a developer-tool offer with targeting, claims, pricing notes, docs, integration metadata, and disclosure copy.
+2. AdConnect reviews the offer before it can be shown.
+3. A user asks ChatGPT or Codex for a vendor, tool, service, comparison, or setup help.
+4. ChatGPT or Codex calls AdConnect's MCP-style tools with the user's intent, stack, category, language, and region.
+5. AdConnect returns sponsored and organic options with relevance reasons and disclosure requirements.
+6. ChatGPT or Codex presents sponsored options separately, records impressions, and lets the user inspect, compare, dismiss, report, or claim.
+7. If the user approves, ChatGPT or Codex can request integration steps or start a claim handoff.
+8. AdConnect records analytics and audit events for advertisers and trust operations.
 
-The product should feel closer to developer procurement and integration discovery than traditional advertising.
+For a fuller operator narrative, see [docs/product-flow.md](docs/product-flow.md).
 
-## Example User Flow
+## Beta Tool Surface
 
-```text
-User: Find services that can help me add transactional email to this app.
-Codex: I found a few relevant options. One is sponsored.
+The beta contract is designed around seven MCP-style tools:
 
-1. Resend - sponsored - free tier plus startup credits
-2. Postmark - organic
-3. SendGrid - organic
+- `search_offers`: find relevant sponsored and organic developer-tool offers.
+- `get_offer_details`: inspect terms, eligibility, docs, claims, pricing, and disclosure text.
+- `compare_offers`: compare selected vendors across developer-relevant criteria.
+- `claim_offer`: start an approved claim, signup, or redemption handoff.
+- `get_integration_steps`: return SDK, setup, configuration, and validation steps.
+- `track_event`: record impressions, inspections, claims, dismissals, reports, conversions, and integration events.
+- `report_offer`: let users flag misleading, unsafe, irrelevant, expired, or low-quality offers.
 
-User: Show me the sponsored option.
-Codex: Here are the offer details, docs, pricing notes, and setup steps.
+The current local prototype implements this beta loop with campaign creation, persistent local offer data, search, details, comparison, claim, integration-step, report, event-tracking, and analytics workflows. The expanded beta contract is documented in [mcp/tool-contract.json](mcp/tool-contract.json).
 
-User: Use it and add the integration.
-Codex: I can add the SDK, create the env var template, and wire a basic send function.
-```
+## Trust Model
 
-## Core Surfaces
+AdConnect should be useful only when it respects the user:
 
-### Advertiser Dashboard
+- Sponsored placements are always labeled `Sponsored`.
+- Paid results are separated from organic recommendations.
+- Offers explain why they were shown.
+- Sponsored placement never implies product superiority.
+- Users can dismiss, mute, and report offers.
+- User approval is required before external handoffs, account creation, purchases, installs, telemetry export, hosted connector calls, or code changes.
+- Advertiser claims, links, docs, SDK instructions, and hosted connectors require review.
+- Selection, presentation, claims, reports, and side effects are logged for audit.
 
-Businesses should be able to:
+## Run Locally
 
-- Create campaigns and offers.
-- Define target intents, categories, frameworks, languages, and regions.
-- Upload docs, screenshots, offer copy, integration notes, and SDK examples.
-- Configure budgets, bid rules, start dates, and expiration dates.
-- Preview how Codex would present the offer.
-- Review impressions, interactions, claims, and conversions.
+Requirements:
 
-### Codex Integration
+- Node 24+
+- No package install is required for the dependency-free MVP
 
-Codex should be able to:
-
-- Query AdConnect when the user asks for relevant vendors, tools, services, or integrations.
-- Show sponsored options with explicit labels.
-- Explain why an offer was shown.
-- Compare sponsored and organic options.
-- Ask for approval before taking external actions or changing code.
-- Remember dismissals or user preferences within the allowed product boundary.
-
-### MCP-Style API
-
-The first API surface should expose a small set of tools:
-
-- `search_offers`: Find relevant sponsored and organic options for a user intent.
-- `get_offer_details`: Return terms, docs, setup notes, eligibility, and disclosure text.
-- `compare_offers`: Compare multiple vendors on developer-relevant dimensions.
-- `claim_offer`: Start an approved offer claim or signup handoff.
-- `get_integration_steps`: Return setup instructions, SDK snippets, and configuration requirements.
-- `track_event`: Record impressions, clicks, claims, dismissals, and conversions.
-- `report_offer`: Let users flag misleading, irrelevant, unsafe, or low-quality offers.
-
-## Safety And Trust Requirements
-
-AdConnect only works if users trust it. The platform should include:
-
-- Opt-in sponsored suggestions.
-- Clear "Sponsored" labels.
-- No hidden paid ranking in ordinary answers.
-- Separation between paid placements and organic recommendations.
-- Relevance explanations, such as "shown because you asked about email APIs."
-- User approval before installs, signups, code changes, purchases, or external side effects.
-- Strict review of advertiser tools, links, claims, SDKs, and docs.
-- Easy dismiss, mute, and report controls.
-- Audit logs for offer selection and advertiser tool calls.
-
-## MVP Scope
-
-The first version should stay narrow:
-
-1. Build an advertiser campaign model with mock data.
-2. Implement an MCP-style API with `search_offers`, `get_offer_details`, and `track_event`.
-3. Add a simple web dashboard for creating and previewing offers.
-4. Add a Codex-facing prompt and tool contract that can present sponsored options responsibly.
-5. Support only developer-tool categories at first, such as email APIs, hosting, observability, auth, payments, and databases.
-6. Track basic analytics: impression, inspect, claim, dismiss, and report.
-
-## Suggested Technical Shape
-
-Start with a TypeScript full-stack prototype:
-
-- Web app for advertiser campaign management.
-- API server for offer search and event tracking.
-- Local mock offer database before adding persistence.
-- Structured offer schema with disclosure, targeting, assets, and integration metadata.
-- MCP-compatible tool definitions that Codex can call.
-- Test fixtures that simulate common developer intents.
-
-Once the product behavior feels right, add durable storage, authentication, billing, advertiser approval workflows, and a production MCP endpoint.
-
-## Initial Roadmap
-
-### Phase 1: Prototype
-
-- Create static offer data.
-- Build search and offer-detail endpoints.
-- Build a minimal advertiser dashboard.
-- Create sample campaigns for common developer services.
-- Validate the user experience manually inside Codex-like conversations.
-
-### Phase 2: Interactive Offers
-
-- Add claim flows.
-- Add integration-step generation.
-- Add conversion callbacks.
-- Add moderation and review states.
-- Add user controls for opt-in, mute, dismiss, and report.
-
-### Phase 3: Marketplace
-
-- Add advertiser accounts and billing.
-- Add campaign budgets and targeting.
-- Add analytics dashboards.
-- Add quality scoring and policy review.
-- Package the Codex integration as an installable plugin or app-style integration.
-
-## Guiding Principle
-
-Every sponsored interaction should help the user complete the task they already asked to do. If it does not save time, reduce uncertainty, or make the next action easier, it should not appear.
-
-## Implemented MVP
-
-This repository now contains a dependency-free TypeScript prototype that runs on Node 24+:
-
-- Mock advertiser campaigns and developer-tool offers.
-- Search, offer detail, event tracking, campaign creation, and analytics services.
-- Static advertiser dashboard for creating and previewing sponsored offers.
-- MCP-style JSON-RPC endpoint with `tools/list` and `tools/call`.
-- Codex-facing prompt and tool contract in `mcp/`.
-- Node test coverage for search, details, tracking, and created campaigns.
-
-### Run Locally
+Start the app:
 
 ```bash
 npm start
 ```
 
-Open `http://127.0.0.1:8081`.
+Open:
+
+```text
+http://127.0.0.1:8081
+```
 
 For live reload while editing:
 
@@ -168,40 +77,9 @@ Run tests:
 npm test
 ```
 
-Node 24 currently runs the `.ts` files through native type stripping, so no build step or package install is required for the MVP.
+## Local API Examples
 
-### HTTP API
-
-```bash
-curl -sS http://127.0.0.1:8081/api/tools
-curl -sS http://127.0.0.1:8081/api/analytics
-```
-
-Search offers:
-
-```bash
-curl -sS http://127.0.0.1:8081/api/offers/search \
-  -H 'Content-Type: application/json' \
-  -d '{"intent":"add transactional email to a Next.js app","category":"email","frameworks":["next.js"],"languages":["typescript"],"region":"US"}'
-```
-
-Inspect an offer:
-
-```bash
-curl -sS http://127.0.0.1:8081/api/offers/offer_courierloop_email_credits
-```
-
-Track an event:
-
-```bash
-curl -sS http://127.0.0.1:8081/api/events \
-  -H 'Content-Type: application/json' \
-  -d '{"offerId":"offer_courierloop_email_credits","eventType":"inspect","sessionId":"demo"}'
-```
-
-### MCP-Style JSON-RPC
-
-List tools:
+List available MCP-style tools:
 
 ```bash
 curl -sS http://127.0.0.1:8081/mcp \
@@ -209,10 +87,70 @@ curl -sS http://127.0.0.1:8081/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
-Call `search_offers`:
+Search offers:
 
 ```bash
 curl -sS http://127.0.0.1:8081/mcp \
   -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search_offers","arguments":{"intent":"need app monitoring for an Express API","category":"observability","frameworks":["express"],"languages":["typescript"],"region":"US"}}}'
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search_offers","arguments":{"intent":"add transactional email to a Next.js app","category":"email","frameworks":["next.js"],"languages":["typescript"],"region":"US"}}}'
 ```
+
+Inspect an offer:
+
+```bash
+curl -sS http://127.0.0.1:8081/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_offer_details","arguments":{"offerId":"offer_courierloop_email_credits"}}}'
+```
+
+Track an interaction:
+
+```bash
+curl -sS http://127.0.0.1:8081/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"track_event","arguments":{"offerId":"offer_courierloop_email_credits","eventType":"inspect","sessionId":"demo-investor"}}}'
+```
+
+REST endpoints are also available:
+
+```bash
+curl -sS http://127.0.0.1:8081/api/tools
+curl -sS http://127.0.0.1:8081/api/analytics
+```
+
+## Founder Demo Script
+
+Use this sequence for an investor or customer demo:
+
+1. Open `http://127.0.0.1:8081`.
+2. Create a sponsored offer for a developer product, such as an email API startup credit.
+3. In Preview Search, enter `add transactional email to a Next.js app`.
+4. Show that AdConnect returns sponsored and organic options separately.
+5. Inspect the sponsored offer and point out the terms, relevance reasons, docs, setup notes, and disclosure guidance.
+6. Click Claim, Dismiss, or Report to show user-controlled actions.
+7. Open Analytics and show impressions, inspections, claims, dismissals, reports, and conversions.
+8. Explain the beta extension: ChatGPT or Codex would call the same tool contract to compare offers, retrieve integration steps, and only perform side effects after user approval.
+
+Suggested talk track:
+
+```text
+AdConnect lets developer-tool companies meet users at the moment of intent. A user asks ChatGPT or Codex for help choosing or integrating a service. AdConnect returns reviewed sponsored offers alongside organic options, with strict labeling, relevance explanations, and user approval before actions. Advertisers get measurable outcomes; users get useful, inspectable offers instead of passive ads.
+```
+
+## Production Roadmap
+
+The marketable beta still needs these production pieces:
+
+- **Authentication**: advertiser accounts, workspaces, roles, API keys, and operator access.
+- **Durable database**: persistent campaigns, offers, reviews, events, reports, dismissals, preferences, budgets, and audit logs.
+- **Advertiser review**: policy queue for claims, targeting, links, docs, SDK snippets, hosted connectors, and offer terms.
+- **Billing**: campaign budgets, pricing model, invoices, spend controls, fraud checks, and conversion attribution.
+- **Approved hosted connectors**: advertiser-hosted MCP/action endpoints with scopes, review status, runtime isolation, rate limits, and revocation.
+- **User consent and preferences**: opt-in controls, mute/dismiss memory, category preferences, region handling, and consent receipts for side effects.
+- **Moderation and audit**: report workflows, enforcement actions, immutable logs, reviewer notes, appeal handling, and quality scoring.
+- **Measurement**: conversion callbacks, deduplication, session attribution, advertiser analytics, and trust dashboards.
+- **Production deployment**: hosted MCP endpoint, observability, secrets management, CI, backups, abuse prevention, and service-level monitoring.
+
+## Guiding Principle
+
+Every sponsored interaction should help the user complete the task they already asked to do. If an offer does not save time, reduce uncertainty, or make the next action easier, it should not appear.

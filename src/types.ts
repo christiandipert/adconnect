@@ -4,7 +4,10 @@ export type OfferCategory =
   | "observability"
   | "auth"
   | "payments"
-  | "database";
+  | "database"
+  | "analytics"
+  | "ci_cd"
+  | "security";
 
 export type CampaignStatus = "draft" | "active" | "paused" | "expired";
 
@@ -44,6 +47,12 @@ export interface IntegrationMetadata {
   requiredEnvVars: string[];
   configFiles: string[];
 }
+
+export type ClaimStatus = "pending_approval" | "handoff_ready" | "completed";
+
+export type ReportStatus = "open" | "reviewed" | "dismissed";
+
+export type SetupEffortLevel = "low" | "medium" | "high";
 
 export interface OfferAsset {
   logoUrl?: string;
@@ -140,6 +149,100 @@ export interface TrackEventInput {
 export interface TrackedEvent extends TrackEventInput {
   id: string;
   occurredAt: string;
+}
+
+export interface ClaimOfferInput {
+  offerId: string;
+  userApproval?: boolean;
+  sessionId?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface OfferClaim {
+  id: string;
+  offerId: string;
+  status: ClaimStatus;
+  handoffUrl: string;
+  approvalRequired: boolean;
+  sessionId?: string;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReportOfferInput {
+  offerId: string;
+  category: string;
+  reason: string;
+  sessionId?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface OfferReport {
+  id: string;
+  offerId: string;
+  category: string;
+  reason: string;
+  status: ReportStatus;
+  sessionId?: string;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CompareOffersInput {
+  offerIds: string[];
+}
+
+export interface SetupEffort {
+  level: SetupEffortLevel;
+  stepCount: number;
+  requiredEnvVarCount: number;
+  configFileCount: number;
+  summary: string;
+}
+
+export interface OfferComparisonRow {
+  offerId: string;
+  vendorName: string;
+  title: string;
+  category: OfferCategory;
+  sponsored: boolean;
+  label: "Sponsored" | "Organic";
+  pricingNotes: string;
+  envVars: string[];
+  setupEffort: SetupEffort;
+  disclosure: string;
+}
+
+export interface CompareOffersResult {
+  generatedAt: string;
+  disclosure: string;
+  offerIds: string[];
+  rows: OfferComparisonRow[];
+  summary: {
+    categories: OfferCategory[];
+    sponsoredCount: number;
+    organicCount: number;
+  };
+}
+
+export interface IntegrationStep {
+  order: number;
+  title: string;
+  description: string;
+  approvalRequired: boolean;
+}
+
+export interface IntegrationStepsResult {
+  offerId: string;
+  vendorName: string;
+  title: string;
+  installCommand?: string;
+  envVars: string[];
+  configFiles: string[];
+  approvalReminder: string;
+  steps: IntegrationStep[];
 }
 
 export interface AnalyticsByOffer {
