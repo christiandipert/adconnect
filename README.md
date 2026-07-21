@@ -136,3 +136,83 @@ Once the product behavior feels right, add durable storage, authentication, bill
 ## Guiding Principle
 
 Every sponsored interaction should help the user complete the task they already asked to do. If it does not save time, reduce uncertainty, or make the next action easier, it should not appear.
+
+## Implemented MVP
+
+This repository now contains a dependency-free TypeScript prototype that runs on Node 24+:
+
+- Mock advertiser campaigns and developer-tool offers.
+- Search, offer detail, event tracking, campaign creation, and analytics services.
+- Static advertiser dashboard for creating and previewing sponsored offers.
+- MCP-style JSON-RPC endpoint with `tools/list` and `tools/call`.
+- Codex-facing prompt and tool contract in `mcp/`.
+- Node test coverage for search, details, tracking, and created campaigns.
+
+### Run Locally
+
+```bash
+npm start
+```
+
+Open `http://127.0.0.1:8081`.
+
+For live reload while editing:
+
+```bash
+npm run dev
+```
+
+Run tests:
+
+```bash
+npm test
+```
+
+Node 24 currently runs the `.ts` files through native type stripping, so no build step or package install is required for the MVP.
+
+### HTTP API
+
+```bash
+curl -sS http://127.0.0.1:8081/api/tools
+curl -sS http://127.0.0.1:8081/api/analytics
+```
+
+Search offers:
+
+```bash
+curl -sS http://127.0.0.1:8081/api/offers/search \
+  -H 'Content-Type: application/json' \
+  -d '{"intent":"add transactional email to a Next.js app","category":"email","frameworks":["next.js"],"languages":["typescript"],"region":"US"}'
+```
+
+Inspect an offer:
+
+```bash
+curl -sS http://127.0.0.1:8081/api/offers/offer_courierloop_email_credits
+```
+
+Track an event:
+
+```bash
+curl -sS http://127.0.0.1:8081/api/events \
+  -H 'Content-Type: application/json' \
+  -d '{"offerId":"offer_courierloop_email_credits","eventType":"inspect","sessionId":"demo"}'
+```
+
+### MCP-Style JSON-RPC
+
+List tools:
+
+```bash
+curl -sS http://127.0.0.1:8081/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+Call `search_offers`:
+
+```bash
+curl -sS http://127.0.0.1:8081/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search_offers","arguments":{"intent":"need app monitoring for an Express API","category":"observability","frameworks":["express"],"languages":["typescript"],"region":"US"}}}'
+```

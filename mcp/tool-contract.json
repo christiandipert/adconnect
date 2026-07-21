@@ -1,0 +1,29 @@
+{
+  "name": "adconnect-mvp",
+  "version": "0.1.0",
+  "endpoint": "/mcp",
+  "transport": "json-rpc-http",
+  "tools": [
+    {
+      "name": "search_offers",
+      "description": "Find relevant sponsored and organic developer-tool offers for a user intent.",
+      "required": ["intent"]
+    },
+    {
+      "name": "get_offer_details",
+      "description": "Return terms, docs, setup notes, eligibility, disclosure text, and presentation guidance.",
+      "required": ["offerId"]
+    },
+    {
+      "name": "track_event",
+      "description": "Record impressions, inspection, claims, dismissals, reports, and conversions.",
+      "required": ["offerId", "eventType"]
+    }
+  ],
+  "eventTypes": ["impression", "inspect", "claim", "dismiss", "report", "conversion"],
+  "safety": {
+    "sponsoredLabelsRequired": true,
+    "organicRankingSeparated": true,
+    "approvalRequiredForSideEffects": true
+  }
+}

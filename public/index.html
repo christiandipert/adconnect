@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AdConnect MVP</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">MVP Dashboard</p>
+        <h1>AdConnect</h1>
+      </div>
+      <div class="status-pill" id="healthStatus">Checking API</div>
+    </header>
+
+    <main class="workspace">
+      <section class="band layout-two">
+        <form class="panel" id="campaignForm">
+          <div class="panel-heading">
+            <h2>Create Sponsored Offer</h2>
+            <button type="submit">Save Offer</button>
+          </div>
+
+          <div class="form-grid">
+            <label>
+              Advertiser
+              <input name="advertiserName" value="Northstar Auth" required />
+            </label>
+            <label>
+              Campaign
+              <input name="campaignName" value="Auth migration credits" required />
+            </label>
+            <label>
+              Vendor
+              <input name="vendorName" value="Northstar Auth" required />
+            </label>
+            <label>
+              Category
+              <select name="category" id="categorySelect" required></select>
+            </label>
+            <label class="span-2">
+              Offer title
+              <input name="offerTitle" value="Hosted auth migration package" required />
+            </label>
+            <label class="span-2">
+              Summary
+              <textarea name="offerSummary" required>Hosted login, OAuth, and user management migration support for product teams adding authentication.</textarea>
+            </label>
+            <label>
+              Target intents
+              <input name="targetIntents" value="auth, login, oauth, user management" required />
+            </label>
+            <label>
+              Frameworks
+              <input name="frameworks" value="next.js, express, rails" />
+            </label>
+            <label>
+              Languages
+              <input name="languages" value="typescript, javascript, ruby" />
+            </label>
+            <label>
+              Regions
+              <input name="regions" value="US, GLOBAL" />
+            </label>
+            <label>
+              Budget cents
+              <input name="budgetCents" type="number" min="1" value="250000" />
+            </label>
+            <label>
+              Bid cents
+              <input name="bidCents" type="number" min="1" value="140" />
+            </label>
+            <label>
+              Offer URL
+              <input name="offerUrl" type="url" value="https://northstar-auth.example/migration" />
+            </label>
+            <label>
+              Docs URL
+              <input name="docsUrl" type="url" value="https://docs.northstar-auth.example" />
+            </label>
+            <label class="span-2">
+              Pricing notes
+              <input name="pricingNotes" value="Mock migration credits for MVP testing." />
+            </label>
+          </div>
+          <p class="form-message" id="formMessage" role="status"></p>
+        </form>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <h2>Preview Search</h2>
+            <button id="runSearchButton" type="button">Run Search</button>
+          </div>
+
+          <div class="search-controls">
+            <label>
+              Intent
+              <input id="intentInput" value="Find services to add transactional email to a Next.js app" />
+            </label>
+            <label>
+              Category
+              <select id="searchCategorySelect"></select>
+            </label>
+            <label>
+              Frameworks
+              <input id="frameworkInput" value="next.js" />
+            </label>
+            <label>
+              Languages
+              <input id="languageInput" value="typescript" />
+            </label>
+            <label>
+              Region
+              <input id="regionInput" value="US" />
+            </label>
+            <label class="checkbox-line">
+              <input id="includeOrganicInput" type="checkbox" checked />
+              Include organic
+            </label>
+          </div>
+
+          <div class="disclosure" id="searchDisclosure"></div>
+          <div class="results" id="results"></div>
+        </section>
+      </section>
+
+      <section class="band layout-two">
+        <section class="panel">
+          <div class="panel-heading">
+            <h2>Offer Details</h2>
+            <span class="muted" id="detailLabel">No offer selected</span>
+          </div>
+          <div id="details" class="details-empty">No offer selected.</div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <h2>Analytics</h2>
+            <button id="refreshAnalyticsButton" type="button">Refresh</button>
+          </div>
+          <div class="metrics" id="metrics"></div>
+          <div class="event-log" id="eventLog"></div>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
